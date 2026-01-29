@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { Session, User } from '@supabase/supabase-js';
+import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Admin } from '../types';
 
@@ -21,44 +21,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     const fetchAdminProfile = useCallback(async (userId: string) => {
-        const { data, error } = await supabase
-            .from('admins')
-            .select('*')
-            .eq('user_id', userId)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('admins')
+                .select('*')
+                .eq('user_id', userId)
+                .single();
 
-        if (error) {
-            console.error('Error fetching admin profile:', error);
+            if (error) {
+                console.warn('Admin check failed:', error.message);
+                return null;
+            }
+            return data as Admin;
+        } catch (e) {
             return null;
         }
-        return data as Admin;
     }, []);
 
     useEffect(() => {
-        // Get initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchAdminProfile(session.user.id).then(setAdmin);
-            }
-            setLoading(false);
-        });
+        let mounted = true;
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        async function initialize() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!mounted) return;
+
+                setSession(session);
+                setUser(session?.user ?? null);
+
+                if (session?.user) {
+                    const profile = await fetchAdminProfile(session.user.id);
+                    if (mounted) setAdmin(profile);
+                }
+            } catch (err) {
+                console.error('Init error:', err);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        }
+
+        initialize();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth event:', event);
+            if (!mounted) return;
+
             setSession(session);
             setUser(session?.user ?? null);
+
             if (session?.user) {
-                const adminProfile = await fetchAdminProfile(session.user.id);
-                setAdmin(adminProfile);
+                const profile = await fetchAdminProfile(session.user.id);
+                if (mounted) setAdmin(profile);
             } else {
-                setAdmin(null);
+                if (mounted) setAdmin(null);
             }
-            setLoading(false);
+
+            if (mounted) setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
     }, [fetchAdminProfile]);
 
     const signIn = async (email: string, password: string) => {
@@ -74,11 +98,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value= {{ user, admin, session, loading, signIn, signOut }
-}>
-    { children }
-    </AuthContext.Provider>
-  );
+        <AuthContext.Provider value={{ user, admin, session, loading, signIn, signOut }}>
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
 export function useAuth() {

@@ -1,3 +1,4 @@
+export { Admins } from './Admins';
 export { Categories } from './Categories';
 export { Dashboard } from './Dashboard';
 export { Login } from './Login';

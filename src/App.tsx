@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
-import { Categories, Dashboard, Login, Places, Reports, Stats } from './pages';
+import { Admins, Categories, Dashboard, Login, Places, Reports, Stats } from './pages';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, admin, loading } = useAuth();
@@ -74,6 +74,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Stats />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admins"
+        element={
+          <ProtectedRoute>
+            <Admins />
           </ProtectedRoute>
         }
       />

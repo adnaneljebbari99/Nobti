@@ -1,4 +1,4 @@
-import { BarChart3, FileText, FolderTree, LayoutDashboard, LogOut, MapPin } from 'lucide-react';
+import { BarChart3, FileText, FolderTree, LayoutDashboard, LogOut, MapPin, ShieldCheck } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -8,11 +8,16 @@ const navItems = [
     { path: '/places', icon: MapPin, label: 'Places' },
     { path: '/reports', icon: FileText, label: 'Reports' },
     { path: '/stats', icon: BarChart3, label: 'Statistics' },
+    { path: '/admins', icon: ShieldCheck, label: 'Admins', superAdminOnly: true },
 ];
 
 export function Sidebar() {
     const location = useLocation();
     const { signOut, admin } = useAuth();
+
+    const filteredNavItems = navItems.filter(item =>
+        !item.superAdminOnly || admin?.role === 'superadmin'
+    );
 
     return (
         <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col">
@@ -24,7 +29,7 @@ export function Sidebar() {
 
             {/* Navigation */}
             <nav className="flex-1 px-4 py-6 space-y-1">
-                {navItems.map((item) => {
+                {filteredNavItems.map((item) => {
                     const isActive = location.pathname === item.path;
                     return (
                         <Link
